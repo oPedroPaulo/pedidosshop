@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expedição Shopee - Rev Maker 3D (Nuvem)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS (XLSX Parser) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Firebase SDK (v10 Modular via CDN) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
+        import { 
+            getFirestore, 
+            collection, 
+            doc, 
+            setDoc, 
+            getDocs, 
+            updateDoc, 
+            deleteDoc, 
+            writeBatch,
+            onSnapshot 
+        } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
+
+        // Configurações do Firebase do seu projeto RevMaker-Shopee
+        const firebaseConfig = {
+            apiKey: "AIzaSyCh1dO0MZgs-JKXS0UdnO7yMUD69Psqlpk",
+            authDomain: "revmaker-shopee.firebaseapp.com",
+            projectId: "revmaker-shopee",
+            storageBucket: "revmaker-shopee.firebasestorage.app",
+            messagingSenderId: "217874594496",
+            appId: "1:217874594496:web:375448b8899d8defd5b82b",
+            measurementId: "G-G4RGB6SSTZ"
+        };
+
+        // Inicializa o Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Disponibiliza as funções do Firebase no escopo global
+        window.db = db;
+        window.fbCollection = collection;
+        window.fbDoc = doc;
+        window.fbSetDoc = setDoc;
+        window.fbGetDocs = getDocs;
+        window.fbUpdateDoc = updateDoc;
+        window.fbWriteBatch = writeBatch;
+        window.fbOnSnapshot = onSnapshot;
+
+        // Avisa a aplicação que o Firebase está pronto
+        window.dispatchEvent(new Event('firebase-ready'));
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header / Navbar -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-orange-500 p-2 rounded-lg text-white">
+                    <i data-lucide="package-search" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight flex items-center gap-2">
+                        Expedição Shopee
+                        <span id="cloud-status" class="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-normal px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Nuvem Conectada
+                        </span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Sincronização em Tempo Real (Firebase)</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <label for="xlsx-file" class="bg-orange-500 hover:bg-orange-600 text-white font-medium px-4 py-2 rounded-lg text-sm transition flex items-center gap-2 cursor-pointer shadow-sm">
+                    <i data-lucide="file-up" class="w-4 h-4"></i>
+                    <span>Importar XLSX</span>
+                </label>
+                <input type="file" id="xlsx-file" accept=".xlsx, .xls" class="hidden" />
+
+                <button id="btn-clear" title="Limpar Pedidos na Nuvem" class="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-red-400 p-2 rounded-lg transition text-sm flex items-center gap-1 border border-slate-700">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+
+        <!-- Banner Dropzone quando não houver pedidos na nuvem -->
+        <div id="dropzone" class="border-2 border-dashed border-slate-300 bg-white rounded-xl p-12 text-center shadow-sm transition hover:border-orange-400 cursor-pointer my-6">
+            <div class="mx-auto w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 mb-4">
+                <i data-lucide="upload-cloud" class="w-8 h-8"></i>
+            </div>
+            <h2 class="text-xl font-bold text-slate-800 mb-1">Importar nova planilha da Shopee</h2>
+            <p class="text-slate-500 text-sm max-w-md mx-auto mb-4">Selecione o arquivo Excel (.xlsx) exportado na aba "A Enviar" da Shopee para sincronizar na nuvem.</p>
+            <span class="inline-flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
+                <i data-lucide="cloud" class="w-4 h-4"></i>
+                Sincronizado automaticamente com todos os seus dispositivos
+            </span>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div id="dashboard-content" class="hidden space-y-6">
+
+            <!-- Cards Métrica -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Total de Pedidos</p>
+                        <h3 id="stat-total" class="text-2xl font-bold text-slate-900 mt-1">0</h3>
+                    </div>
+                    <div class="p-3 bg-blue-50 text-blue-600 rounded-lg">
+                        <i data-lucide="shopping-bag" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Pendente Embalar</p>
+                        <h3 id="stat-pending" class="text-2xl font-bold text-amber-600 mt-1">0</h3>
+                    </div>
+                    <div class="p-3 bg-amber-50 text-amber-600 rounded-lg">
+                        <i data-lucide="clock" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Pronto / Embalados</p>
+                        <h3 id="stat-packed" class="text-2xl font-bold text-indigo-600 mt-1">0</h3>
+                    </div>
+                    <div class="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
+                        <i data-lucide="box" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Postados / Concluídos</p>
+                        <h3 id="stat-posted" class="text-2xl font-bold text-emerald-600 mt-1">0</h3>
+                    </div>
+                    <div class="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
+                        <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros & Busca -->
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
+                    <button class="filter-btn active px-3.5 py-1.5 rounded-lg text-sm font-medium transition bg-slate-900 text-white" data-status="ALL">
+                        Todos (<span id="count-all">0</span>)
+                    </button>
+                    <button class="filter-btn px-3.5 py-1.5 rounded-lg text-sm font-medium transition text-slate-600 hover:bg-slate-100" data-status="PENDING">
+                        A Embalar (<span id="count-pending">0</span>)
+                    </button>
+                    <button class="filter-btn px-3.5 py-1.5 rounded-lg text-sm font-medium transition text-slate-600 hover:bg-slate-100" data-status="PACKED">
+                        Embalados (<span id="count-packed">0</span>)
+                    </button>
+                    <button class="filter-btn px-3.5 py-1.5 rounded-lg text-sm font-medium transition text-slate-600 hover:bg-slate-100" data-status="POSTED">
+                        Postados (<span id="count-posted">0</span>)
+                    </button>
+                </div>
+
+                <div class="relative w-full md:w-80">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="search-input" placeholder="Buscar por ID, Comprador ou SKU..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
+                </div>
+            </div>
+
+            <!-- Tabela de Pedidos -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100/70 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                <th class="p-4 w-12 text-center">Status</th>
+                                <th class="p-4">ID do Pedido / Rastreio</th>
+                                <th class="p-4">Cliente / Local</th>
+                                <th class="p-4">Itens / Variação (Qtd)</th>
+                                <th class="p-4 text-right">Valor Total</th>
+                                <th class="p-4 text-center">Ações / Etapas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orders-table-body" class="divide-y divide-slate-200 text-sm">
+                            <!-- Inserido dinamicamente -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="no-results" class="hidden p-8 text-center text-slate-500">
+                    <i data-lucide="package-open" class="w-10 h-10 mx-auto mb-2 text-slate-400"></i>
+                    <p class="font-medium">Nenhum pedido encontrado para o filtro aplicado.</p>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500 mt-auto">
+        <p>Rev Maker 3D • Sistema de Expedição na Nuvem</p>
+    </footer>
+
+    <!-- Script Lógico principal -->
+    <script>
+        let ordersMap = {};
+        let currentFilter = 'ALL';
+        let searchQuery = '';
+        let unsubscribeCloud = null;
+
+        const xlsxFileInput = document.getElementById('xlsx-file');
+        const dropzone = document.getElementById('dropzone');
+        const dashboardContent = document.getElementById('dashboard-content');
+        const tableBody = document.getElementById('orders-table-body');
+        const searchInput = document.getElementById('search-input');
+        const btnClear = document.getElementById('btn-clear');
+        const noResults = document.getElementById('no-results');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            setupEventListeners();
+        });
+
+        // Aguarda Firebase carregar
+        window.addEventListener('firebase-ready', () => {
+            initCloudListener();
+        });
+
+        // Escuta alterações na nuvem em Tempo Real
+        function initCloudListener() {
+            if (!window.db) return;
+            const ordersCol = window.fbCollection(window.db, "shopee_orders");
+
+            if (unsubscribeCloud) unsubscribeCloud();
+
+            unsubscribeCloud = window.fbOnSnapshot(ordersCol, (snapshot) => {
+                ordersMap = {};
+                snapshot.forEach((doc) => {
+                    ordersMap[doc.id] = doc.data();
+                });
+                renderOrders();
+            }, (error) => {
+                console.error("Erro ao sincronizar com o Firebase:", error);
+            });
+        }
+
+        function setupEventListeners() {
+            xlsxFileInput.addEventListener('change', handleFileSelect);
+
+            dropzone.addEventListener('click', () => xlsxFileInput.click());
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('border-orange-500', 'bg-orange-50/50');
+            });
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.classList.remove('border-orange-500', 'bg-orange-50/50');
+            });
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('border-orange-500', 'bg-orange-50/50');
+                if (e.dataTransfer.files.length) {
+                    processXLSX(e.dataTransfer.files[0]);
+                }
+            });
+
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.filter-btn').forEach(b => {
+                        b.classList.remove('active', 'bg-slate-900', 'text-white');
+                        b.classList.add('text-slate-600', 'hover:bg-slate-100');
+                    });
+                    const target = e.currentTarget;
+                    target.classList.add('active', 'bg-slate-900', 'text-white');
+                    target.classList.remove('text-slate-600', 'hover:bg-slate-100');
+                    currentFilter = target.getAttribute('data-status');
+                    renderOrders();
+                });
+            });
+
+            searchInput.addEventListener('input', (e) => {
+                searchQuery = e.target.value.toLowerCase();
+                renderOrders();
+            });
+
+            btnClear.addEventListener('click', async () => {
+                if (confirm('Deseja realmente limpar todos os pedidos salvos na NUVEM?')) {
+                    try {
+                        const batch = window.fbWriteBatch(window.db);
+                        const snapshot = await window.fbGetDocs(window.fbCollection(window.db, "shopee_orders"));
+                        snapshot.forEach((doc) => {
+                            batch.delete(doc.ref);
+                        });
+                        await batch.commit();
+                        alert('Todos os pedidos foram limpos na nuvem.');
+                    } catch (err) {
+                        console.error(err);
+                        alert('Erro ao apagar pedidos na nuvem.');
+                    }
+                }
+            });
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processXLSX(file);
+            }
+        }
+
+        function parsePriceValue(val) {
+            if (val === undefined || val === null || val === '') return 0;
+            if (typeof val === 'number') return val;
+
+            let str = String(val).replace(/R\$\s?/g, '').trim();
+            if (str.includes(',')) {
+                str = str.replace(/\./g, '').replace(',', '.');
+            }
+            const parsed = parseFloat(str);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+
+        async function processXLSX(file) {
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+                    if (rows.length === 0) {
+                        alert('A planilha importada parece estar vazia.');
+                        return;
+                    }
+
+                    const newOrdersMap = {};
+
+                    rows.forEach(row => {
+                        const orderId = String(row['ID do pedido'] || row['Order ID'] || row['ID'] || '').trim();
+                        if (!orderId) return;
+
+                        const trackingNo = String(row['Número de rastreamento'] || row['Tracking Number'] || row['Nº de Rastreamento'] || '-').trim();
+                        const recipient = String(row['Nome do destinatário'] || row['Nome do comprador'] || row['Comprador'] || '-').trim();
+                        const city = String(row['Cidade'] || row['Cidade.1'] || '').trim();
+                        const state = String(row['UF'] || row['Estado'] || '').trim();
+                        const shippingOption = String(row['Opção de envio'] || row['Método de envio'] || '').trim();
+                        const orderTotalVal = parsePriceValue(row['Valor Total'] || row['Total global'] || row['Total Amount']);
+
+                        const itemTitle = String(row['Nome do Produto'] || row['Product Name'] || 'Produto').trim();
+                        const variation = String(row['Nome da variação'] || row['Variation'] || '').trim();
+                        const sku = String(row['Número de referência SKU'] || row['Nº de referência do SKU principal'] || '').trim();
+                        const qty = parseInt(row['Quantidade'] || row['Quantity'] || '1', 10);
+                        
+                        let itemSubtotal = parsePriceValue(row['Subtotal do produto']);
+                        if (!itemSubtotal) {
+                            const unitPrice = parsePriceValue(row['Preço acordado'] || row['Preço original']);
+                            itemSubtotal = unitPrice * qty;
+                        }
+
+                        if (newOrdersMap[orderId]) {
+                            newOrdersMap[orderId].items.push({
+                                title: itemTitle,
+                                variation: variation,
+                                sku: sku,
+                                qty: qty,
+                                subtotal: itemSubtotal
+                            });
+                        } else {
+                            // Preserva status caso já exista anteriormente na nuvem
+                            const existing = ordersMap[orderId] || {};
+
+                            newOrdersMap[orderId] = {
+                                id: orderId,
+                                tracking: trackingNo,
+                                recipient: recipient,
+                                location: [city, state].filter(Boolean).join(' / '),
+                                shippingOption: shippingOption,
+                                totalPrice: orderTotalVal,
+                                items: [{
+                                    title: itemTitle,
+                                    variation: variation,
+                                    sku: sku,
+                                    qty: qty,
+                                    subtotal: itemSubtotal
+                                }],
+                                isPacked: existing.isPacked || false,
+                                isPosted: existing.isPosted || false,
+                                updatedAt: new Date().toISOString()
+                            };
+                        }
+                    });
+
+                    // Envia em lote (Batch) para o Firebase Firestore
+                    const batch = window.fbWriteBatch(window.db);
+                    Object.values(newOrdersMap).forEach(orderObj => {
+                        const docRef = window.fbDoc(window.db, "shopee_orders", orderObj.id);
+                        batch.set(docRef, orderObj, { merge: true });
+                    });
+
+                    await batch.commit();
+                    alert(`Planilha sincronizada na nuvem com sucesso! ${Object.keys(newOrdersMap).length} pedidos atualizados.`);
+
+                } catch (err) {
+                    console.error(err);
+                    alert('Erro ao enviar dados para a nuvem. Verifique se o Firestore está ativado no Firebase.');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function renderOrders() {
+            const ordersList = Object.values(ordersMap);
+
+            if (ordersList.length === 0) {
+                dropzone.classList.remove('hidden');
+                dashboardContent.classList.add('hidden');
+                return;
+            }
+
+            dropzone.classList.add('hidden');
+            dashboardContent.classList.remove('hidden');
+
+            let countTotal = ordersList.length;
+            let countPending = 0;
+            let countPacked = 0;
+            let countPosted = 0;
+
+            ordersList.forEach(o => {
+                if (o.isPosted) {
+                    countPosted++;
+                } else if (o.isPacked) {
+                    countPacked++;
+                } else {
+                    countPending++;
+                }
+            });
+
+            document.getElementById('stat-total').innerText = countTotal;
+            document.getElementById('stat-pending').innerText = countPending;
+            document.getElementById('stat-packed').innerText = countPacked;
+            document.getElementById('stat-posted').innerText = countPosted;
+
+            document.getElementById('count-all').innerText = countTotal;
+            document.getElementById('count-pending').innerText = countPending;
+            document.getElementById('count-packed').innerText = countPacked;
+            document.getElementById('count-posted').innerText = countPosted;
+
+            const filtered = ordersList.filter(o => {
+                if (currentFilter === 'PENDING' && (o.isPacked || o.isPosted)) return false;
+                if (currentFilter === 'PACKED' && (!o.isPacked || o.isPosted)) return false;
+                if (currentFilter === 'POSTED' && !o.isPosted) return false;
+
+                if (searchQuery) {
+                    const matchId = o.id.toLowerCase().includes(searchQuery);
+                    const matchRecipient = o.recipient.toLowerCase().includes(searchQuery);
+                    const matchTracking = o.tracking.toLowerCase().includes(searchQuery);
+                    const matchItems = o.items.some(i => 
+                        i.title.toLowerCase().includes(searchQuery) || 
+                        i.variation.toLowerCase().includes(searchQuery) ||
+                        i.sku.toLowerCase().includes(searchQuery)
+                    );
+                    return matchId || matchRecipient || matchTracking || matchItems;
+                }
+
+                return true;
+            });
+
+            tableBody.innerHTML = '';
+
+            if (filtered.length === 0) {
+                noResults.classList.remove('hidden');
+            } else {
+                noResults.classList.add('hidden');
+            }
+
+            filtered.forEach(order => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+
+                let statusBadge = '';
+                if (order.isPosted) {
+                    statusBadge = `<span class="inline-flex items-center p-1.5 rounded-full bg-emerald-100 text-emerald-700" title="Postado"><i data-lucide="check" class="w-4 h-4"></i></span>`;
+                } else if (order.isPacked) {
+                    statusBadge = `<span class="inline-flex items-center p-1.5 rounded-full bg-indigo-100 text-indigo-700" title="Embalado"><i data-lucide="box" class="w-4 h-4"></i></span>`;
+                } else {
+                    statusBadge = `<span class="inline-flex items-center p-1.5 rounded-full bg-amber-100 text-amber-700" title="A Embalar"><i data-lucide="clock" class="w-4 h-4"></i></span>`;
+                }
+
+                const itemsHtml = order.items.map((item, idx) => `
+                    <div class="${idx > 0 ? 'border-t border-slate-100 pt-2 mt-2' : ''}">
+                        <div class="font-medium text-slate-800 line-clamp-2">${item.title}</div>
+                        <div class="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
+                            ${item.variation ? `<span class="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200">Var: <strong>${item.variation}</strong></span>` : ''}
+                            ${item.sku ? `<span class="text-slate-400">SKU: ${item.sku}</span>` : ''}
+                            <span class="font-bold text-slate-900 bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded ml-auto">Qtd: ${item.qty}</span>
+                        </div>
+                    </div>
+                `).join('');
+
+                const formattedTotal = (order.totalPrice || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+                tr.innerHTML = `
+                    <td class="p-4 text-center">
+                        ${statusBadge}
+                    </td>
+                    <td class="p-4 font-mono text-xs">
+                        <div class="font-bold text-slate-900 text-sm">${order.id}</div>
+                        <div class="text-slate-500 mt-0.5">Rastreio: <span class="select-all font-semibold">${order.tracking}</span></div>
+                    </td>
+                    <td class="p-4">
+                        <div class="font-semibold text-slate-800">${order.recipient}</div>
+                        <div class="text-xs text-slate-500 mt-0.5">${order.location || 'Localidade N/A'}</div>
+                    </td>
+                    <td class="p-4 max-w-md">
+                        ${itemsHtml}
+                    </td>
+                    <td class="p-4 text-right font-bold text-slate-900 whitespace-nowrap">
+                        ${formattedTotal}
+                    </td>
+                    <td class="p-4 text-center whitespace-nowrap">
+                        <div class="inline-flex rounded-lg shadow-sm" role="group">
+                            <button onclick="togglePacked('${order.id}')" class="px-3 py-1.5 text-xs font-semibold rounded-l-lg border ${order.isPacked ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'} transition flex items-center gap-1">
+                                <i data-lucide="box" class="w-3.5 h-3.5"></i>
+                                ${order.isPacked ? 'Embalado' : 'Embalar'}
+                            </button>
+                            <button onclick="togglePosted('${order.id}')" class="px-3 py-1.5 text-xs font-semibold rounded-r-lg border-t border-b border-r ${order.isPosted ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'} transition flex items-center gap-1">
+                                <i data-lucide="truck" class="w-3.5 h-3.5"></i>
+                                ${order.isPosted ? 'Postado' : 'Postar'}
+                            </button>
+                        </div>
+                    </td>
+                `;
+
+                tableBody.appendChild(tr);
+            });
+
+            lucide.createIcons();
+        }
+
+        // Atualização dos botões na nuvem
+        window.togglePacked = async function(id) {
+            if (ordersMap[id]) {
+                const newPacked = !ordersMap[id].isPacked;
+                const newPosted = !newPacked ? false : ordersMap[id].isPosted;
+
+                try {
+                    const docRef = window.fbDoc(window.db, "shopee_orders", id);
+                    await window.fbUpdateDoc(docRef, {
+                        isPacked: newPacked,
+                        isPosted: newPosted
+                    });
+                } catch (e) {
+                    console.error("Erro ao atualizar na nuvem:", e);
+                }
+            }
+        };
+
+        window.togglePosted = async function(id) {
+            if (ordersMap[id]) {
+                const newPosted = !ordersMap[id].isPosted;
+                const newPacked = newPosted ? true : ordersMap[id].isPacked;
+
+                try {
+                    const docRef = window.fbDoc(window.db, "shopee_orders", id);
+                    await window.fbUpdateDoc(docRef, {
+                        isPacked: newPacked,
+                        isPosted: newPosted
+                    });
+                } catch (e) {
+                    console.error("Erro ao atualizar na nuvem:", e);
+                }
+            }
+        };
+    </script>
+</body>
+</html>
