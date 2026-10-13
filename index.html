@@ -107,10 +107,10 @@
                 <i data-lucide="upload-cloud" class="w-8 h-8"></i>
             </div>
             <h2 class="text-xl font-bold text-slate-800 mb-1">Importar nova planilha da Shopee</h2>
-            <p class="text-slate-500 text-sm max-w-md mx-auto mb-4">Selecione o arquivo Excel (.xlsx) exportado na aba "A Enviar" da Shopee para sincronizar na nuvem.</p>
+            <p class="text-slate-500 text-sm max-w-md mx-auto mb-4">Selecione o arquivo Excel (.xlsx) exportado na aba "A Enviar" ou "Meus Pedidos" da Shopee.</p>
             <span class="inline-flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
                 <i data-lucide="cloud" class="w-4 h-4"></i>
-                Sincronizado automaticamente com todos os seus dispositivos
+                Detecção automática de pedidos já enviados na planilha
             </span>
         </div>
 
@@ -460,6 +460,17 @@
                         const shippingOption = String(row['Opção de envio'] || row['Método de envio'] || '').trim();
                         const orderTotalVal = parsePriceValue(row['Valor Total'] || row['Total global'] || row['Total Amount']);
 
+                        // Status do pedido vindo diretamente da planilha da Shopee
+                        const shopeeStatus = String(row['Status do pedido'] || row['Status do Pedido'] || row['Order Status'] || '').trim().toLowerCase();
+
+                        // Verifica se o status já indica que foi enviado/postado
+                        const isShippedInXlsx = shopeeStatus.includes('enviado') || 
+                                               shopeeStatus.includes('concluído') || 
+                                               shopeeStatus.includes('concluido') || 
+                                               shopeeStatus.includes('a caminho') ||
+                                               shopeeStatus.includes('shipped') ||
+                                               shopeeStatus.includes('completed');
+
                         // Captura Data do Pedido
                         const orderDate = String(
                             row['Hora do pagamento do pedido'] || 
@@ -490,6 +501,10 @@
                         } else {
                             const existing = ordersMap[orderId] || {};
 
+                            // Determina status final: se a planilha indicar "enviado" OU se já tiver marcado anteriormente
+                            const isPackedFinal = isShippedInXlsx || existing.isPacked || false;
+                            const isPostedFinal = isShippedInXlsx || existing.isPosted || false;
+
                             newOrdersMap[orderId] = {
                                 id: orderId,
                                 tracking: trackingNo,
@@ -498,6 +513,7 @@
                                 shippingOption: shippingOption,
                                 totalPrice: orderTotalVal,
                                 createdAt: orderDate,
+                                shopeeStatusRaw: shopeeStatus,
                                 items: [{
                                     title: itemTitle,
                                     variation: variation,
@@ -505,8 +521,8 @@
                                     qty: qty,
                                     subtotal: itemSubtotal
                                 }],
-                                isPacked: existing.isPacked || false,
-                                isPosted: existing.isPosted || false,
+                                isPacked: isPackedFinal,
+                                isPosted: isPostedFinal,
                                 updatedAt: new Date().toISOString()
                             };
                         }
