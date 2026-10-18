@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Expedição Shopee - Rev Maker 3D (Nuvem)</title>
+    <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="ico.ico">
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- SheetJS (XLSX Parser) -->
@@ -188,10 +190,10 @@
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4">
                 <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                     <div class="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
-                        <button class="filter-btn active px-3.5 py-1.5 rounded-lg text-sm font-medium transition bg-slate-900 text-white whitespace-nowrap" data-status="ALL">
+                        <button class="filter-btn px-3.5 py-1.5 rounded-lg text-sm font-medium transition text-slate-600 hover:bg-slate-100 whitespace-nowrap" data-status="ALL">
                             Todos (<span id="count-all">0</span>)
                         </button>
-                        <button class="filter-btn px-3.5 py-1.5 rounded-lg text-sm font-medium transition text-slate-600 hover:bg-slate-100 whitespace-nowrap" data-status="PENDING">
+                        <button class="filter-btn active px-3.5 py-1.5 rounded-lg text-sm font-medium transition bg-slate-900 text-white whitespace-nowrap" data-status="PENDING">
                             A Embalar (<span id="count-pending">0</span>)
                         </button>
                         <button class="filter-btn px-3.5 py-1.5 rounded-lg text-sm font-medium transition text-slate-600 hover:bg-slate-100 whitespace-nowrap" data-status="PACKED">
@@ -279,7 +281,7 @@
     <!-- Script Lógico principal -->
     <script>
         let ordersMap = {};
-        let currentFilter = 'ALL';
+        let currentFilter = 'PENDING';
         let searchQuery = '';
         let orderIdQuery = '';
         let selectedSort = 'DATE_DESC';
@@ -396,7 +398,6 @@
             });
         }
 
-        // Calcula e exibe o quadro resumo de produção por SKU/Produto no topo
         function renderSkuSummary() {
             const grid = document.getElementById('sku-summary-grid');
             const totalBadge = document.getElementById('sku-summary-total-items');
@@ -406,7 +407,6 @@
             const skuCounts = {};
             let grandTotalUnits = 0;
 
-            // Percorre apenas pedidos que AINDA NÃO FORAM POSTADOS
             Object.values(ordersMap).forEach(order => {
                 if (!order.isPosted) {
                     order.items.forEach(item => {
@@ -507,6 +507,18 @@
             return isNaN(parsed) ? 0 : parsed;
         }
 
+        function setFilterToPending() {
+            currentFilter = 'PENDING';
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                b.classList.remove('active', 'bg-slate-900', 'text-white');
+                b.classList.add('text-slate-600', 'hover:bg-slate-100');
+                if (b.getAttribute('data-status') === 'PENDING') {
+                    b.classList.add('active', 'bg-slate-900', 'text-white');
+                    b.classList.remove('text-slate-600', 'hover:bg-slate-100');
+                }
+            });
+        }
+
         async function processXLSX(file) {
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -523,7 +535,6 @@
                     }
 
                     const newOrdersMap = {};
-                    let autoPostedCount = 0;
 
                     rows.forEach(row => {
                         const orderId = String(row['ID do pedido'] || row['Order ID'] || row['ID'] || '').trim();
@@ -538,10 +549,16 @@
 
                         const shopeeStatus = String(row['Status do pedido'] || row['Status do Pedido'] || row['Order Status'] || '').trim().toLowerCase();
                         
-                        const hasValidTracking = trackingNo !== '-' && trackingNo !== '' && trackingNo.length >= 8;
-                        const isNotAEnviar = shopeeStatus !== '' && !shopeeStatus.includes('a enviar') && !shopeeStatus.includes('to ship');
+                        const isAEnviarInXlsx = shopeeStatus.includes('a enviar') || shopeeStatus.includes('to ship');
                         
-                        const isShippedInXlsx = isNotAEnviar || hasValidTracking;
+                        const isShippedInXlsx = !isAEnviarInXlsx && (
+                            shopeeStatus.includes('enviado') || 
+                            shopeeStatus.includes('concluído') || 
+                            shopeeStatus.includes('concluido') || 
+                            shopeeStatus.includes('a caminho') ||
+                            shopeeStatus.includes('shipped') ||
+                            shopeeStatus.includes('completed')
+                        );
 
                         const orderDate = String(
                             row['Hora do pagamento do pedido'] || 
@@ -570,13 +587,16 @@
                                 subtotal: itemSubtotal
                             });
                         } else {
-                            const existing = ordersMap[orderId] || {};
+                            let isPostedFinal = false;
+                            let isPackedFinal = false;
 
-                            const isPostedFinal = isShippedInXlsx || existing.isPosted || false;
-                            const isPackedFinal = isPostedFinal || existing.isPacked || false;
-
-                            if (isShippedInXlsx && (!existing.isPosted)) {
-                                autoPostedCount++;
+                            if (isShippedInXlsx) {
+                                isPostedFinal = true;
+                                isPackedFinal = true;
+                            } else if (!isAEnviarInXlsx) {
+                                const existing = ordersMap[orderId] || {};
+                                isPostedFinal = existing.isPosted || false;
+                                isPackedFinal = isPostedFinal || existing.isPacked || false;
                             }
 
                             newOrdersMap[orderId] = {
@@ -611,11 +631,9 @@
 
                     await batch.commit();
 
-                    let msg = `Planilha sincronizada na nuvem com sucesso!\n${Object.keys(newOrdersMap).length} pedidos atualizados.`;
-                    if (autoPostedCount > 0) {
-                        msg += `\n\n🚀 ${autoPostedCount} pedido(s) foram identificados com código de rastreio/postados e movidos para a aba POSTADOS!`;
-                    }
-                    alert(msg);
+                    setFilterToPending();
+
+                    alert(`Planilha importada com sucesso!\n${Object.keys(newOrdersMap).length} pedidos processados.`);
 
                 } catch (err) {
                     console.error(err);
