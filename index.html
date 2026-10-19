@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expedição Shopee - Rev Maker 3D (Nuvem)</title>
+    <title>Expedição Shopee - Rev Maker 3D</title>
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="ico.ico">
 
@@ -29,7 +29,7 @@
             onSnapshot 
         } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
 
-        // Configurações do Firebase do seu projeto RevMaker-Shopee
+        // Configurações do Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyCh1dO0MZgs-JKXS0UdnO7yMUD69Psqlpk",
             authDomain: "revmaker-shopee.firebaseapp.com",
@@ -44,7 +44,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Disponibiliza as funções do Firebase no escopo global
+        // Disponibiliza as funções no escopo global
         window.db = db;
         window.fbCollection = collection;
         window.fbDoc = doc;
@@ -54,7 +54,6 @@
         window.fbWriteBatch = writeBatch;
         window.fbOnSnapshot = onSnapshot;
 
-        // Avisa a aplicação que o Firebase está pronto
         window.dispatchEvent(new Event('firebase-ready'));
     </script>
 
@@ -71,7 +70,7 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
 
-    <!-- Header / Navbar -->
+    <!-- Header / Navbar Principal -->
     <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-2 sm:gap-3">
@@ -80,19 +79,19 @@
                 </div>
                 <div>
                     <h1 class="font-bold text-base sm:text-lg leading-tight flex items-center gap-2">
-                        Expedição Shopee
+                        Rev Maker 3D • Expedição
                         <span id="cloud-status" class="text-[10px] sm:text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-normal px-2 py-0.5 rounded-full flex items-center gap-1">
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Nuvem Conectada
                         </span>
                     </h1>
-                    <p class="text-[11px] sm:text-xs text-slate-400">Sincronização em Tempo Real (Firebase)</p>
+                    <p class="text-[11px] sm:text-xs text-slate-400">Controle de Produção, Embalagem e Postagem</p>
                 </div>
             </div>
 
             <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <label for="xlsx-file" class="bg-orange-500 hover:bg-orange-600 text-white font-medium px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm flex-1 sm:flex-none">
                     <i data-lucide="file-up" class="w-4 h-4"></i>
-                    <span>Importar XLSX</span>
+                    <span>Importar Planilha</span>
                 </label>
                 <input type="file" id="xlsx-file" accept=".xlsx, .xls" class="hidden" />
 
@@ -111,16 +110,16 @@
             <div class="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 mb-3 sm:mb-4">
                 <i data-lucide="upload-cloud" class="w-6 h-6 sm:w-8 sm:h-8"></i>
             </div>
-            <h2 class="text-lg sm:text-xl font-bold text-slate-800 mb-1">Importar nova planilha da Shopee</h2>
-            <p class="text-slate-500 text-xs sm:text-sm max-w-md mx-auto mb-4">Selecione a planilha baixada na Shopee para atualizar e ver a contagem de produção de cada SKU!</p>
+            <h2 class="text-lg sm:text-xl font-bold text-slate-800 mb-1">Importar Planilha de Pedidos da Shopee</h2>
+            <p class="text-slate-500 text-xs sm:text-sm max-w-md mx-auto mb-4">Selecione a planilha de envios exportada da Central do Vendedor para carregar a lista de produção!</p>
             <span class="inline-flex items-center gap-2 text-[11px] sm:text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
                 <i data-lucide="cloud" class="w-3.5 h-3.5"></i>
-                Sincronização e contagem de itens por SKU em tempo real
+                Sincronização em Tempo Real na Nuvem
             </span>
         </div>
 
-        <!-- Dashboard Content -->
-        <div id="dashboard-content" class="hidden space-y-4 sm:space-y-6">
+        <!-- MÓDULO DE EXPEDIÇÃO & PRODUÇÃO -->
+        <div id="main-content" class="space-y-4 sm:space-y-6">
 
             <!-- Painel de Resumo da Produção por SKU/Produto -->
             <div class="bg-white p-3.5 sm:p-5 rounded-xl border border-orange-200 shadow-sm bg-gradient-to-r from-orange-50/40 via-white to-white">
@@ -139,13 +138,12 @@
                     </span>
                 </div>
 
-                <!-- Grid dinâmico de cards por SKU -->
                 <div id="sku-summary-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 max-h-56 overflow-y-auto custom-scrollbar pr-1">
                     <!-- Inserido dinamicamente via JS -->
                 </div>
             </div>
 
-            <!-- Cards Métrica Geral -->
+            <!-- Cards de Métricas Gerais -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
                 <div class="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                     <div>
@@ -188,7 +186,7 @@
                 </div>
             </div>
 
-            <!-- Filtros & Busca -->
+            <!-- Filtros, Busca & Ordenação -->
             <div class="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm space-y-3.5">
                 <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                     <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 lg:pb-0 -mx-1 px-1">
@@ -254,8 +252,7 @@
                                 <th class="p-3 w-10 text-center">Status</th>
                                 <th class="p-3">ID Pedido / Data</th>
                                 <th class="p-3">Cliente / Local</th>
-                                <th class="p-3">Itens / Variação</th>
-                                <th class="p-3 text-right">Valor Total</th>
+                                <th class="p-3">Itens / Variação / Quantidade</th>
                                 <th class="p-3 text-center">Ações / Etapas</th>
                             </tr>
                         </thead>
@@ -277,7 +274,7 @@
 
     <!-- Footer -->
     <footer class="bg-white border-t border-slate-200 py-3 text-center text-[11px] text-slate-500 mt-auto">
-        <p>Rev Maker 3D • Sistema de Expedição na Nuvem</p>
+        <p>Rev Maker 3D • Sistema de Expedição & Produção Shopee</p>
     </footer>
 
     <!-- Script Lógico principal -->
@@ -292,7 +289,7 @@
 
         const xlsxFileInput = document.getElementById('xlsx-file');
         const dropzone = document.getElementById('dropzone');
-        const dashboardContent = document.getElementById('dashboard-content');
+        const mainContent = document.getElementById('main-content');
         const tableBody = document.getElementById('orders-table-body');
         const searchInput = document.getElementById('search-input');
         const orderIdSearchInput = document.getElementById('order-id-search-input');
@@ -400,7 +397,6 @@
             });
         }
 
-        // Calcula e exibe o quadro resumo APENAS para os pedidos na aba "A EMBALAR"
         function renderSkuSummary() {
             const grid = document.getElementById('sku-summary-grid');
             const totalBadge = document.getElementById('sku-summary-total-items');
@@ -410,9 +406,8 @@
             const skuCounts = {};
             let grandTotalUnits = 0;
 
-            // Filtro estrito: Apenas pedidos NÃO embalados e NÃO postados
             Object.values(ordersMap).forEach(order => {
-                if (!order.isPacked && !order.isPosted) {
+                if (!order.isPacked && !order.isPosted && order.items) {
                     order.items.forEach(item => {
                         const skuKey = item.sku || item.title;
                         const label = item.sku ? `${item.sku}` : item.title;
@@ -471,15 +466,17 @@
             const skuMap = {};
 
             Object.values(ordersMap).forEach(order => {
-                order.items.forEach(item => {
-                    const key = item.sku || item.title;
-                    if (!skuMap[key]) {
-                        skuMap[key] = {
-                            label: item.sku ? `${item.sku} - ${item.title.substring(0, 30)}...` : item.title,
-                            val: key
-                        };
-                    }
-                });
+                if (order.items) {
+                    order.items.forEach(item => {
+                        const key = item.sku || item.title;
+                        if (!skuMap[key]) {
+                            skuMap[key] = {
+                                label: item.sku ? `${item.sku} - ${item.title.substring(0, 30)}...` : item.title,
+                                val: key
+                            };
+                        }
+                    });
+                }
             });
 
             Object.values(skuMap).sort((a, b) => a.label.localeCompare(b.label)).forEach(skuObj => {
@@ -497,18 +494,6 @@
             if (file) {
                 processXLSX(file);
             }
-        }
-
-        function parsePriceValue(val) {
-            if (val === undefined || val === null || val === '') return 0;
-            if (typeof val === 'number') return val;
-
-            let str = String(val).replace(/R\$\s?/g, '').trim();
-            if (str.includes(',')) {
-                str = str.replace(/\./g, '').replace(',', '.');
-            }
-            const parsed = parseFloat(str);
-            return isNaN(parsed) ? 0 : parsed;
         }
 
         function setFilterToPending() {
@@ -531,16 +516,24 @@
                     const workbook = XLSX.read(data, { type: 'array' });
                     const firstSheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[firstSheetName];
-                    const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+                    const jsonRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
 
-                    if (rows.length === 0) {
+                    if (jsonRows.length === 0) {
                         alert('A planilha importada parece estar vazia.');
                         return;
                     }
 
+                    const batch = window.fbWriteBatch(window.db);
+                    
+                    // Limpa lote antigo de pedidos na nuvem ao importar planilha nova
+                    const oldDocs = await window.fbGetDocs(window.fbCollection(window.db, "shopee_orders"));
+                    oldDocs.forEach((docSnap) => {
+                        batch.delete(docSnap.ref);
+                    });
+
                     const newOrdersMap = {};
 
-                    rows.forEach(row => {
+                    jsonRows.forEach(row => {
                         const orderId = String(row['ID do pedido'] || row['Order ID'] || row['ID'] || '').trim();
                         if (!orderId) return;
 
@@ -549,7 +542,6 @@
                         const city = String(row['Cidade'] || row['Cidade.1'] || '').trim();
                         const state = String(row['UF'] || row['Estado'] || '').trim();
                         const shippingOption = String(row['Opção de envio'] || row['Método de envio'] || '').trim();
-                        const orderTotalVal = parsePriceValue(row['Valor Total'] || row['Total global'] || row['Total Amount']);
 
                         const shopeeStatus = String(row['Status do pedido'] || row['Status do Pedido'] || row['Order Status'] || '').trim().toLowerCase();
                         
@@ -575,33 +567,17 @@
                         const variation = String(row['Nome da variação'] || row['Variation'] || '').trim();
                         const sku = String(row['Número de referência SKU'] || row['Nº de referência do SKU principal'] || '').trim();
                         const qty = parseInt(row['Quantidade'] || row['Quantity'] || '1', 10);
-                        
-                        let itemSubtotal = parsePriceValue(row['Subtotal do produto']);
-                        if (!itemSubtotal) {
-                            const unitPrice = parsePriceValue(row['Preço acordado'] || row['Preço original']);
-                            itemSubtotal = unitPrice * qty;
-                        }
 
                         if (newOrdersMap[orderId]) {
                             newOrdersMap[orderId].items.push({
                                 title: itemTitle,
                                 variation: variation,
                                 sku: sku,
-                                qty: qty,
-                                subtotal: itemSubtotal
+                                qty: qty
                             });
                         } else {
-                            let isPostedFinal = false;
-                            let isPackedFinal = false;
-
-                            if (isShippedInXlsx) {
-                                isPostedFinal = true;
-                                isPackedFinal = true;
-                            } else if (!isAEnviarInXlsx) {
-                                const existing = ordersMap[orderId] || {};
-                                isPostedFinal = existing.isPosted || false;
-                                isPackedFinal = isPostedFinal || existing.isPacked || false;
-                            }
+                            let isPostedFinal = isShippedInXlsx;
+                            let isPackedFinal = isShippedInXlsx;
 
                             newOrdersMap[orderId] = {
                                 id: orderId,
@@ -609,15 +585,13 @@
                                 recipient: recipient,
                                 location: [city, state].filter(Boolean).join(' / '),
                                 shippingOption: shippingOption,
-                                totalPrice: orderTotalVal,
                                 createdAt: orderDate,
                                 shopeeStatusRaw: shopeeStatus,
                                 items: [{
                                     title: itemTitle,
                                     variation: variation,
                                     sku: sku,
-                                    qty: qty,
-                                    subtotal: itemSubtotal
+                                    qty: qty
                                 }],
                                 isPacked: isPackedFinal,
                                 isPosted: isPostedFinal,
@@ -626,18 +600,15 @@
                         }
                     });
 
-                    // Envia em lote (Batch) para o Firebase Firestore
-                    const batch = window.fbWriteBatch(window.db);
                     Object.values(newOrdersMap).forEach(orderObj => {
                         const docRef = window.fbDoc(window.db, "shopee_orders", orderObj.id);
                         batch.set(docRef, orderObj, { merge: true });
                     });
 
                     await batch.commit();
-
                     setFilterToPending();
 
-                    alert(`Planilha importada com sucesso!\n${Object.keys(newOrdersMap).length} pedidos processados.`);
+                    alert(`Planilha de expedição carregada com sucesso!`);
 
                 } catch (err) {
                     console.error(err);
@@ -652,12 +623,12 @@
 
             if (ordersList.length === 0) {
                 dropzone.classList.remove('hidden');
-                dashboardContent.classList.add('hidden');
+                mainContent.classList.add('hidden');
                 return;
             }
 
             dropzone.classList.add('hidden');
-            dashboardContent.classList.remove('hidden');
+            mainContent.classList.remove('hidden');
 
             let countTotal = ordersList.length;
             let countPending = 0;
@@ -694,19 +665,19 @@
                     if (!matchId) return false;
                 }
 
-                if (selectedSkuFilter !== 'ALL') {
+                if (selectedSkuFilter !== 'ALL' && o.items) {
                     const hasSkuMatch = o.items.some(i => i.sku === selectedSkuFilter || i.title === selectedSkuFilter);
                     if (!hasSkuMatch) return false;
                 }
 
                 if (searchQuery) {
-                    const matchRecipient = o.recipient.toLowerCase().includes(searchQuery);
-                    const matchTracking = o.tracking.toLowerCase().includes(searchQuery);
-                    const matchItems = o.items.some(i => 
+                    const matchRecipient = o.recipient ? o.recipient.toLowerCase().includes(searchQuery) : false;
+                    const matchTracking = o.tracking ? o.tracking.toLowerCase().includes(searchQuery) : false;
+                    const matchItems = o.items ? o.items.some(i => 
                         i.title.toLowerCase().includes(searchQuery) || 
                         i.variation.toLowerCase().includes(searchQuery) ||
                         i.sku.toLowerCase().includes(searchQuery)
-                    );
+                    ) : false;
                     return matchRecipient || matchTracking || matchItems;
                 }
 
@@ -747,7 +718,7 @@
                     statusBadge = `<span class="inline-flex items-center p-1.5 rounded-full bg-amber-100 text-amber-700" title="A Embalar"><i data-lucide="clock" class="w-3.5 h-3.5"></i></span>`;
                 }
 
-                const itemsHtml = order.items.map((item, idx) => `
+                const itemsHtml = (order.items || []).map((item, idx) => `
                     <div class="${idx > 0 ? 'border-t border-slate-100 pt-1.5 mt-1.5' : ''}">
                         <div class="font-medium text-slate-800 line-clamp-2">${item.title}</div>
                         <div class="flex items-center gap-1.5 mt-0.5 text-[11px] text-slate-500 flex-wrap">
@@ -758,26 +729,21 @@
                     </div>
                 `).join('');
 
-                const formattedTotal = (order.totalPrice || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
                 tr.innerHTML = `
                     <td class="p-3 text-center">
                         ${statusBadge}
                     </td>
                     <td class="p-3 font-mono text-[11px] sm:text-xs">
                         <div class="font-bold text-slate-900 text-xs sm:text-sm bg-orange-50 text-orange-900 border border-orange-200 rounded px-1.5 py-0.5 inline-block">${order.id}</div>
-                        <div class="text-slate-500 mt-1">Rastreio: <span class="select-all font-semibold text-slate-700">${order.tracking}</span></div>
+                        <div class="text-slate-500 mt-1">Rastreio: <span class="select-all font-semibold text-slate-700">${order.tracking || '-'}</span></div>
                         ${order.createdAt ? `<div class="text-slate-400 mt-0.5 flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> ${order.createdAt}</div>` : ''}
                     </td>
                     <td class="p-3">
-                        <div class="font-semibold text-slate-800">${order.recipient}</div>
+                        <div class="font-semibold text-slate-800">${order.recipient || 'Cliente Shopee'}</div>
                         <div class="text-[11px] text-slate-500 mt-0.5">${order.location || 'Localidade N/A'}</div>
                     </td>
                     <td class="p-3 max-w-xs sm:max-w-md">
                         ${itemsHtml}
-                    </td>
-                    <td class="p-3 text-right font-bold text-slate-900 whitespace-nowrap">
-                        ${formattedTotal}
                     </td>
                     <td class="p-3 text-center whitespace-nowrap">
                         <div class="inline-flex rounded-lg shadow-sm" role="group">
