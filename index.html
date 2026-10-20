@@ -84,7 +84,7 @@
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Nuvem Conectada
                         </span>
                     </h1>
-                    <p class="text-[11px] sm:text-xs text-slate-400">Controle de Produção, Embalagem e Postagem</p>
+                    <p class="text-[11px] sm:text-xs text-slate-400">Controle de Produção, Embalagem e Prazo de Postagem (31h)</p>
                 </div>
             </div>
 
@@ -250,7 +250,8 @@
                         <thead>
                             <tr class="bg-slate-100/70 border-b border-slate-200 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
                                 <th class="p-3 w-10 text-center">Status</th>
-                                <th class="p-3">ID Pedido / Data</th>
+                                <th class="p-3">ID Pedido / Compra</th>
+                                <th class="p-3">Prazo Máximo Postagem (31h)</th>
                                 <th class="p-3">Cliente / Local</th>
                                 <th class="p-3">Itens / Variação / Quantidade</th>
                                 <th class="p-3 text-center">Ações / Etapas</th>
@@ -306,6 +307,90 @@
         window.addEventListener('firebase-ready', () => {
             initCloudListener();
         });
+
+        function parseShopeeDate(dateStr) {
+            if (!dateStr) return new Date();
+
+            let str = String(dateStr).trim();
+            
+            // Formato ISO ou YYYY-MM-DD HH:mm:ss
+            if (str.includes('-')) {
+                const parts = str.replace('T', ' ').split(' ');
+                const dateParts = parts[0].split('-');
+                const timeParts = parts[1] ? parts[1].split(':') : [0,0,0];
+                return new Date(
+                    parseInt(dateParts[0]), 
+                    parseInt(dateParts[1]) - 1, 
+                    parseInt(dateParts[2]),
+                    parseInt(timeParts[0] || 0),
+                    parseInt(timeParts[1] || 0),
+                    parseInt(timeParts[2] || 0)
+                );
+            }
+            // Formato DD/MM/YYYY HH:mm:ss
+            else if (str.includes('/')) {
+                const parts = str.split(' ');
+                const dateParts = parts[0].split('/');
+                const timeParts = parts[1] ? parts[1].split(':') : [0,0,0];
+                return new Date(
+                    parseInt(dateParts[2]), 
+                    parseInt(dateParts[1]) - 1, 
+                    parseInt(dateParts[0]),
+                    parseInt(timeParts[0] || 0),
+                    parseInt(timeParts[1] || 0),
+                    parseInt(timeParts[2] || 0)
+                );
+            }
+
+            const parsed = new Date(str);
+            return isNaN(parsed.getTime()) ? new Date() : parsed;
+        }
+
+        function calculateDispatchDeadline(dateStr, isPosted) {
+            if (!dateStr) return { formatted: 'Sem Data', remainingHours: 99, statusClass: 'bg-slate-100 text-slate-700' };
+
+            const purchaseDate = parseShopeeDate(dateStr);
+            const deadlineDate = new Date(purchaseDate.getTime() + (31 * 60 * 60 * 1000));
+
+            const now = new Date();
+            const diffMs = deadlineDate.getTime() - now.getTime();
+            const remainingHours = diffMs / (1000 * 60 * 60);
+
+            const day = String(deadlineDate.getDate()).padStart(2, '0');
+            const month = String(deadlineDate.getMonth() + 1).padStart(2, '0');
+            const hours = String(deadlineDate.getHours()).padStart(2, '0');
+            const mins = String(deadlineDate.getMinutes()).padStart(2, '0');
+
+            const formattedDeadline = `${day}/${month} às ${hours}:${mins}h`;
+
+            if (isPosted) {
+                return {
+                    formatted: formattedDeadline,
+                    label: 'Enviado no Prazo',
+                    statusClass: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                };
+            }
+
+            if (remainingHours < 0) {
+                return {
+                    formatted: formattedDeadline,
+                    label: `Atrasado há ${Math.abs(Math.round(remainingHours))}h`,
+                    statusClass: 'bg-red-100 text-red-800 border-red-300 font-bold animate-pulse'
+                };
+            } else if (remainingHours <= 8) {
+                return {
+                    formatted: formattedDeadline,
+                    label: `Urgente: Faltam ${Math.round(remainingHours)}h`,
+                    statusClass: 'bg-amber-100 text-amber-900 border-amber-300 font-bold'
+                };
+            } else {
+                return {
+                    formatted: formattedDeadline,
+                    label: `Postar em até ${Math.round(remainingHours)}h`,
+                    statusClass: 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                };
+            }
+        }
 
         function initCloudListener() {
             if (!window.db) return;
@@ -525,7 +610,6 @@
 
                     const batch = window.fbWriteBatch(window.db);
                     
-                    // Limpa lote antigo de pedidos na nuvem ao importar planilha nova
                     const oldDocs = await window.fbGetDocs(window.fbCollection(window.db, "shopee_orders"));
                     oldDocs.forEach((docSnap) => {
                         batch.delete(docSnap.ref);
@@ -729,6 +813,8 @@
                     </div>
                 `).join('');
 
+                const deadlineInfo = calculateDispatchDeadline(order.createdAt, order.isPosted);
+
                 tr.innerHTML = `
                     <td class="p-3 text-center">
                         ${statusBadge}
@@ -736,7 +822,18 @@
                     <td class="p-3 font-mono text-[11px] sm:text-xs">
                         <div class="font-bold text-slate-900 text-xs sm:text-sm bg-orange-50 text-orange-900 border border-orange-200 rounded px-1.5 py-0.5 inline-block">${order.id}</div>
                         <div class="text-slate-500 mt-1">Rastreio: <span class="select-all font-semibold text-slate-700">${order.tracking || '-'}</span></div>
-                        ${order.createdAt ? `<div class="text-slate-400 mt-0.5 flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> ${order.createdAt}</div>` : ''}
+                        ${order.createdAt ? `<div class="text-slate-400 mt-0.5 flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> Compra: ${order.createdAt}</div>` : ''}
+                    </td>
+                    <td class="p-3 whitespace-nowrap">
+                        <div class="inline-flex flex-col gap-1">
+                            <span class="px-2.5 py-1 rounded-lg text-xs font-semibold border ${deadlineInfo.statusClass} flex items-center gap-1.5">
+                                <i data-lucide="timer" class="w-3.5 h-3.5"></i>
+                                ${deadlineInfo.label}
+                            </span>
+                            <span class="text-[11px] text-slate-500 font-mono">
+                                Limite: <strong>${deadlineInfo.formatted}</strong>
+                            </span>
+                        </div>
                     </td>
                     <td class="p-3">
                         <div class="font-semibold text-slate-800">${order.recipient || 'Cliente Shopee'}</div>
