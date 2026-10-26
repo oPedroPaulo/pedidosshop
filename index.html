@@ -84,7 +84,7 @@
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Nuvem Conectada
                         </span>
                     </h1>
-                    <p class="text-[11px] sm:text-xs text-slate-400">Controle de Produção, Embalagem e Prazo de Postagem (31h)</p>
+                    <p class="text-[11px] sm:text-xs text-slate-400">Meta: Preparação em até 1.0 dia (24h de Limite)</p>
                 </div>
             </div>
 
@@ -251,7 +251,7 @@
                             <tr class="bg-slate-100/70 border-b border-slate-200 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
                                 <th class="p-3 w-10 text-center">Status</th>
                                 <th class="p-3">ID Pedido / Compra</th>
-                                <th class="p-3">Prazo Máximo Postagem (31h)</th>
+                                <th class="p-3">Prazo Limite (1.0 dia / 24h)</th>
                                 <th class="p-3">Cliente / Local</th>
                                 <th class="p-3">Itens / Variação / Quantidade</th>
                                 <th class="p-3 text-center">Ações / Etapas</th>
@@ -346,11 +346,13 @@
             return isNaN(parsed.getTime()) ? new Date() : parsed;
         }
 
+        // CÁLCULO REAJUSTADO PARA 1.0 DIA (24 HORAS DE PREPARAÇÃO)
         function calculateDispatchDeadline(dateStr, isPosted) {
             if (!dateStr) return { formatted: 'Sem Data', remainingHours: 99, statusClass: 'bg-slate-100 text-slate-700' };
 
             const purchaseDate = parseShopeeDate(dateStr);
-            const deadlineDate = new Date(purchaseDate.getTime() + (31 * 60 * 60 * 1000));
+            // +24 horas (1.0 dia de meta de preparação)
+            const deadlineDate = new Date(purchaseDate.getTime() + (24 * 60 * 60 * 1000));
 
             const now = new Date();
             const diffMs = deadlineDate.getTime() - now.getTime();
@@ -377,7 +379,7 @@
                     label: `Atrasado há ${Math.abs(Math.round(remainingHours))}h`,
                     statusClass: 'bg-red-100 text-red-800 border-red-300 font-bold animate-pulse'
                 };
-            } else if (remainingHours <= 8) {
+            } else if (remainingHours <= 6) {
                 return {
                     formatted: formattedDeadline,
                     label: `Urgente: Faltam ${Math.round(remainingHours)}h`,
@@ -831,7 +833,7 @@
                                 ${deadlineInfo.label}
                             </span>
                             <span class="text-[11px] text-slate-500 font-mono">
-                                Limite: <strong>${deadlineInfo.formatted}</strong>
+                                Limite (24h): <strong>${deadlineInfo.formatted}</strong>
                             </span>
                         </div>
                     </td>
